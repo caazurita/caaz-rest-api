@@ -6,12 +6,8 @@ const service = new ItemService();
 class ItemsController {
   async getAll(req: Request, res: Response) {
     try {
-      // const data = await service.getAll();
-      res.send({
-        data:{
-          items: '123'
-        }
-      });
+      const data = await service.getAll();
+      res.send(data);
     } catch (error) {
       handlerHttp(res, "ERROR_GET_ITEMS");
     }
