@@ -1,27 +1,44 @@
 import { NextFunction, Request, Response } from "express";
-import { verifyJWT } from "../utils/jwt.handler";
+import { generateJWT, verifyJWT } from "../utils/jwt.handler";
 import { JwtPayload } from "jsonwebtoken";
+import { IRequest } from "../interfaces/request.interface";
 
-interface IRequest extends Request {
-  user?: string | JwtPayload;
-}
+const checkSession = async (
+  req: IRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  const accessToken = req.headers["authorization"];
+  const refreshToken = req.cookies["refreshToken"];
 
-const checkSession = (req: IRequest, res: Response, next: NextFunction) => {
-  try {
-    const jwtHeader = req.headers.authorization || "";
-    const jwt = jwtHeader.split(" ").pop();
-    const isUser = verifyJWT(`${jwt}`);
-    if (!isUser) {
-      res.status(401);
-      res.send("SESSION_NOT_VALID");
-    } else {
-      req.user = isUser;
+  if (!accessToken && !refreshToken) {
+    res.status(401).send("NO_TOKEN_PROVIDED");
+  } else {
+    try {
+      const jwt = accessToken ? accessToken.split(" ").pop() : "";
+      const decoded = await verifyJWT(<string>jwt);
+      req.user = decoded;
       next();
+    } catch (error) {
+      if (!refreshToken) {
+        res.status(401).send("NO_REFRESH_TOKEN_PROVIDED");
+      } else {
+        try {
+          const decode: any = verifyJWT(refreshToken);
+          const accessToken = await generateJWT(decode, "1m");
+
+          res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: process.env.ENVIRONMENT === "production",
+            sameSite: "none",
+          });
+          res.json({ accessToken });
+        } catch (error) {
+          res.status(401);
+          res.send("SESSION_NOT_VALID");
+        }
+      }
     }
-    
-  } catch (error) {
-    res.status(401);
-    res.send("SESSION_NOT_VALID");
   }
 };
 

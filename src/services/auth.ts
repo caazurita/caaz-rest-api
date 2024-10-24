@@ -26,9 +26,12 @@ class AuthService {
     const passwordHash = checkIs.password;
     const isValid = await verify(password, passwordHash);
     if (!isValid) throw new Error("PASSWORD_INVALID");
-    const token = await generateJWT(checkIs.email);
+    const accessToken = await generateJWT(checkIs.email, "1m");
+    const refreshToken = await generateJWT(checkIs.email, "1d");
+
     return {
-      token,
+      accessToken,
+      refreshToken,
       user: checkIs,
     };
   }
